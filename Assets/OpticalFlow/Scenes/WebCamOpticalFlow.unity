@@ -230,6 +230,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   flowMaterial: {fileID: 2100000, guid: 127ac6df689824344be4b84ae9d9f012, type: 2}
-  blurIterations: 1
+  blurIterations: 0
   blurDownSample: 0
   debug: 1
