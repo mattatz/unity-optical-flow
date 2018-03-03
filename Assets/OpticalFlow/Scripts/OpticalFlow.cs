@@ -5,7 +5,6 @@ using UnityEngine;
 namespace OpticalFlow
 {
 
-    [RequireComponent (typeof(Camera))]
     public class OpticalFlow : MonoBehaviour {
 
         protected enum Pass {
@@ -16,56 +15,46 @@ namespace OpticalFlow
             Visualize = 4
         };
 
+        public RenderTexture Flow { get { return resultBuffer; } }
+
         [SerializeField] protected Material flowMaterial;
-        [SerializeField, Range(0, 6)] int blurIterations = 1, blurDownSample = 0;
+        [SerializeField, Range(0, 6)] int blurIterations = 0, blurDownSample = 0;
         [SerializeField] protected bool debug;
 
-        protected RenderTexture prev, flowBuffer;
+        protected RenderTexture prevFrame, flowBuffer, resultBuffer;
 
         #region MonoBehaviour functions
 
         protected void Start () {
         }
-        
-        protected void Update () {
-        }
 
-        protected void OnRenderImage(RenderTexture current, RenderTexture destination)
+        protected void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
-            if(prev == null) {
-                Setup(current.width, current.height);
-                Graphics.Blit(current, prev);
-            }
-
-            flowMaterial.SetTexture("_PrevTex", prev);
-            flowMaterial.SetFloat("_Ratio", 1f * Screen.height / Screen.width);
-
-            Graphics.Blit(current, flowBuffer, flowMaterial, (int)Pass.Flow);
-            Graphics.Blit(current, prev);
-
-            // Graphics.Blit(flowBuffer, destination, flowMaterial, (int)Pass.Visualize);
-
-            // Blur and visualize flow
-            var downSampled = DownSample(flowBuffer, blurDownSample);
-            Blur(downSampled, blurIterations);
-            Graphics.Blit(downSampled, destination, flowMaterial, (int)Pass.Visualize);
-
-            RenderTexture.ReleaseTemporary(downSampled);
+            Graphics.Blit(resultBuffer, destination, flowMaterial, (int)Pass.Visualize);
         }
 
         protected void OnDestroy ()
         {
-            prev.Release();
-            flowBuffer.Release();
+            if(prevFrame != null)
+            {
+                prevFrame.Release();
+                prevFrame = null;
+
+                flowBuffer.Release();
+                flowBuffer = null;
+
+                resultBuffer.Release();
+                resultBuffer = null;
+            }
         }
 
         protected void OnGUI ()
         {
-            if (!debug) return;
+            if (!debug || prevFrame == null || flowBuffer == null) return;
 
             const int offset = 10;
             const int width = 176, height = 144;
-            GUI.DrawTexture(new Rect(offset, offset, width, height), prev);
+            GUI.DrawTexture(new Rect(offset, offset, width, height), prevFrame);
             GUI.DrawTexture(new Rect(offset, offset + height, width, height), flowBuffer);
         }
 
@@ -73,15 +62,44 @@ namespace OpticalFlow
 
         protected void Setup(int width, int height)
         {
-            prev = new RenderTexture(width, height, 0);
-            prev.format = RenderTextureFormat.ARGBFloat;
-            prev.wrapMode = TextureWrapMode.Repeat;
-            prev.Create();
+            prevFrame = new RenderTexture(width, height, 0);
+            prevFrame.format = RenderTextureFormat.ARGBFloat;
+            prevFrame.wrapMode = TextureWrapMode.Repeat;
+            prevFrame.Create();
 
             flowBuffer = new RenderTexture(width, height, 0);
             flowBuffer.format = RenderTextureFormat.ARGBFloat;
             flowBuffer.wrapMode = TextureWrapMode.Repeat;
             flowBuffer.Create();
+
+            resultBuffer = new RenderTexture(width >> blurDownSample, height >> blurDownSample, 0);
+            resultBuffer.format = RenderTextureFormat.ARGBFloat;
+            resultBuffer.wrapMode = TextureWrapMode.Repeat;
+            resultBuffer.Create();
+        }
+
+        public void Calculate(Texture current)
+        {
+            if(prevFrame == null) {
+                Setup(current.width, current.height);
+                Graphics.Blit(current, prevFrame);
+            }
+
+            flowMaterial.SetTexture("_PrevTex", prevFrame);
+            flowMaterial.SetFloat("_Ratio", 1f * Screen.height / Screen.width);
+
+            Graphics.Blit(current, flowBuffer, flowMaterial, (int)Pass.Flow);
+            Graphics.Blit(current, prevFrame);
+
+            // Graphics.Blit(flowBuffer, destination, flowMaterial, (int)Pass.Visualize);
+
+            // Blur and visualize flow
+            var downSampled = DownSample(flowBuffer, blurDownSample);
+            Blur(downSampled, blurIterations);
+            // Graphics.Blit(downSampled, destination, flowMaterial, (int)Pass.Visualize);
+            Graphics.Blit(downSampled, resultBuffer);
+
+            RenderTexture.ReleaseTemporary(downSampled);
         }
 
         RenderTexture DownSample(RenderTexture source, int lod)

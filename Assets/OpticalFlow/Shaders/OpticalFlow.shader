@@ -164,8 +164,7 @@
 
                 float w = length(flow);
                 float nw = (w - _Threshold) / (1.0 - _Threshold);
-                flow = lerp(float2(0, 0), normalize(flow) * nw, step(_Threshold, w));
-                flow *= _Scale;
+                flow = lerp(float2(0, 0), normalize(flow) * nw * _Scale, step(_Threshold, w));
                 return float4(flow, 0, 1);
             }
 
