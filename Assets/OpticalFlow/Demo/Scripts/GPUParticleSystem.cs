@@ -91,7 +91,6 @@ namespace OpticalFlow.Demo
                 {
                     var u = x * invW;
 
-                    var center = new Vector3(u - 0.5f, v - 0.5f, 0);
                     var uv = new Vector2(u, v);
                     int i0 = vertices.Count, i1 = i0 + 1, i2 = i1 + 1, i3 = i2 + 1;
 
